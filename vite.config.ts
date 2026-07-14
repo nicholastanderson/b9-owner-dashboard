@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -8,5 +9,10 @@ export default defineConfig({
     // Keep the bundle small for Pi hardware; warn early if it grows.
     chunkSizeWarningLimit: 600,
     target: 'es2020',
+  },
+  test: {
+    // Pure-logic suite (formatting + view-model derivation). No DOM needed.
+    environment: 'node',
+    include: ['src/**/*.test.ts'],
   },
 });
