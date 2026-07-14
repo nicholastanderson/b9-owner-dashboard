@@ -37,4 +37,6 @@ export type {
   UtilizationMetrics,
   FunnelMetrics,
   AmbientMetrics,
+  WeeklyDirective,
+  OperationsMetrics,
 } from './types';

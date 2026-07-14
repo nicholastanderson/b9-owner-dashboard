@@ -24,6 +24,42 @@ export interface MembershipGoal {
   netThisWeek: number;
   /** Members-per-week needed from now to hit the goal on time. */
   neededPerWeek: number;
+  /**
+   * Trailing weekly acquisition rate used to PROJECT the Jan-1 total (the
+   * 800×480 mini board's hero). Smoothed over recent weeks, so it can differ
+   * from this week's raw `netThisWeek`.
+   */
+  trailingPacePerWeek: number;
+}
+
+/** This week's acquisition directive (mini board). */
+export interface WeeklyDirective {
+  /** Members to close this week to stay on pace. */
+  target: number;
+  /** Members closed so far this week. */
+  done: number;
+  /** Days left in the current week. */
+  daysLeft: number;
+}
+
+/**
+ * Operational "act on this now" signals for the mini board's action queue.
+ * These come from operational tools (CRM trial list, Gmail, social scheduler)
+ * rather than the headline money/funnel sources.
+ */
+export interface OperationsMetrics {
+  /** Trials awaiting a follow-up call. */
+  trialsToCall: number;
+  /** Unread/open emails in the shared inbox. */
+  gmailInbox: number;
+  /** Average first-response time to inbound, in hours. */
+  avgResponseHours: number;
+  /** Days since the most recent new-member signup. */
+  daysSinceLastSignup: number;
+  /** Social posts queued/scheduled. */
+  socialQueued: number;
+  /** Days of scheduled social content remaining. */
+  socialRunwayDays: number;
 }
 
 /** Money row — MRR, net member movement, revenue. */
@@ -87,6 +123,10 @@ export interface DashboardMetrics {
   utilization: UtilizationMetrics;
   funnel: FunnelMetrics;
   ambient: AmbientMetrics;
+  /** This week's close directive (used by the 800×480 mini board). */
+  weekly: WeeklyDirective;
+  /** Operational action-queue signals (used by the 800×480 mini board). */
+  operations: OperationsMetrics;
 }
 
 /**

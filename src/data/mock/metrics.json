@@ -5,7 +5,8 @@
     "target": 100,
     "targetDate": "2027-01-01",
     "netThisWeek": 3,
-    "neededPerWeek": 2.1
+    "neededPerWeek": 2.1,
+    "trailingPacePerWeek": 2.6
   },
   "money": {
     "mrr": 12400,
@@ -37,5 +38,18 @@
       "Bay occupancy 63% today — push a twilight-rate promo to fill the 7–9pm gap.",
       "127 Google reviews at 4.8★ — ask today’s trial no-shows for a quick rating."
     ]
+  },
+  "weekly": {
+    "target": 2,
+    "done": 2,
+    "daysLeft": 4
+  },
+  "operations": {
+    "trialsToCall": 0,
+    "gmailInbox": 4,
+    "avgResponseHours": 2,
+    "daysSinceLastSignup": 2,
+    "socialQueued": 6,
+    "socialRunwayDays": 7
   }
 }
