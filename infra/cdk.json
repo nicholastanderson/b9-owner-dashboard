@@ -6,11 +6,11 @@
   },
   "context": {
     "//": "Set these for your GitHub repo so the OIDC trust policy is scoped correctly.",
-    "githubOwner": "thebackninegolf",
-    "githubRepo": "back-nine-pulse-board",
+    "githubOwner": "nicholastanderson",
+    "githubRepo": "b9-owner-dashboard",
     "githubBranch": "main",
-    "//createOidcProvider": "Set to false if a GitHub OIDC provider already exists in this account.",
-    "createOidcProvider": true,
+    "//createOidcProvider": "false: the OIDC provider is created once by github-oidc-bootstrap.yaml, then imported here. Set true only if you deploy the whole stack with admin creds and no bootstrap template exists.",
+    "createOidcProvider": false,
 
     "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
     "@aws-cdk/core:checkSecretUsage": true,

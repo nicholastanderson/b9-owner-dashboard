@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  One-time bootstrap for the Back Nine Pulse Board. Creates the GitHub Actions
+  OIDC identity provider and a deploy role that GitHub Actions assumes (via
+  OIDC, no stored keys) to run `cdk deploy` and publish the site. Deploy this
+  ONCE via the AWS Console (CloudFormation -> Create stack -> Upload a template),
+  then put the RoleArn output into the GitHub repo variable AWS_ROLE_ARN.
+
+  Why a separate template: the pipeline authenticates by assuming this role, so
+  the role must exist before the first Actions run — it can't create itself.
+  Everything else (S3, CloudFront) is provisioned by the CDK stack, in Actions.
+
+Parameters:
+  GitHubOwner:
+    Type: String
+    Default: nicholastanderson
+    Description: GitHub org/user that owns the repo.
+  GitHubRepo:
+    Type: String
+    Default: b9-owner-dashboard
+    Description: Repository name.
+  GitHubBranch:
+    Type: String
+    Default: main
+    Description: Branch allowed to assume the deploy role.
+  CreateOidcProvider:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'true'
+    Description: >-
+      Set to false if a GitHub Actions OIDC provider already exists in this
+      account (only one per account is allowed).
+
+Conditions:
+  ShouldCreateOidc: !Equals [!Ref CreateOidcProvider, 'true']
+
+Resources:
+  GitHubOidcProvider:
+    Type: AWS::IAM::OIDCProvider
+    Condition: ShouldCreateOidc
+    Properties:
+      Url: https://token.actions.githubusercontent.com
+      ClientIdList:
+        - sts.amazonaws.com
+      # GitHub's OIDC thumbprint is validated by IAM automatically; this value
+      # is a required-but-ignored placeholder for modern IAM OIDC.
+      ThumbprintList:
+        - ffffffffffffffffffffffffffffffffffffffff
+
+  DeployRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: back-nine-pulse-board-deploy
+      Description: Assumed by GitHub Actions (OIDC) to cdk-deploy and publish the Pulse Board.
+      MaxSessionDuration: 3600
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Federated: !Sub arn:aws:iam::${AWS::AccountId}:oidc-provider/token.actions.githubusercontent.com
+            Action: sts:AssumeRoleWithWebIdentity
+            Condition:
+              StringEquals:
+                token.actions.githubusercontent.com:aud: sts.amazonaws.com
+              StringLike:
+                # Only workflows on this repo's branch (or its `production`
+                # environment) can assume the role.
+                token.actions.githubusercontent.com:sub:
+                  - !Sub 'repo:${GitHubOwner}/${GitHubRepo}:ref:refs/heads/${GitHubBranch}'
+                  - !Sub 'repo:${GitHubOwner}/${GitHubRepo}:environment:production'
+      # This role runs `cdk bootstrap` + `cdk deploy`, which provision arbitrary
+      # infrastructure — it is necessarily privileged. The tight OIDC trust
+      # above (one repo, one branch) is what keeps it safe. The stack's own
+      # least-privilege app-publish role is separate.
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AdministratorAccess
+
+Outputs:
+  RoleArn:
+    Description: Put this into the GitHub repo variable AWS_ROLE_ARN.
+    Value: !GetAtt DeployRole.Arn

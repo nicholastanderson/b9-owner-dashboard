@@ -128,69 +128,73 @@ Because the shape is fixed, none of the components change.
 
 ## Infrastructure (AWS CDK)
 
-Everything lives in [`infra/`](infra) as one small, readable stack:
+The stack lives in [`infra/`](infra) — small and readable:
 
 - **S3 bucket** — private, all public access blocked, SSE-S3 encryption.
 - **CloudFront** — HTTPS-only, Origin Access Control to the private bucket, and
   SPA fallback (403/404 → `/index.html`, 200). Its URL is what the Pi loads.
-- **GitHub OIDC** — an OIDC identity provider + a deploy role whose trust policy
-  is scoped to this repo's `main` branch, granting only S3 sync + CloudFront
-  invalidation.
+- **App-publish role** — a least-privilege OIDC role (S3 sync + CloudFront
+  invalidation only), for anyone who wants to publish files without infra power.
 
 Outputs: `BucketName`, `DistributionId`, `CloudFrontUrl`, `DeployRoleArn`.
 
-### Bootstrap order
+The **privileged deploy role** GitHub Actions assumes to run `cdk deploy` lives
+in a separate one-time CloudFormation template,
+[`infra/github-oidc-bootstrap.yaml`](infra/github-oidc-bootstrap.yaml) — see
+below for why.
 
-Deploy the infra **first** — it creates the bucket, distribution, and OIDC role
-— then feed its outputs into GitHub so the Actions workflow can deploy on the
-next merge.
+### Bootstrap order (deploy runs entirely in GitHub Actions)
 
-```bash
-cd infra
-npm install
+Everything deploys through the Actions pipeline on merge to `main`. The one
+prerequisite is the OIDC deploy role — the pipeline authenticates by *assuming*
+it, so it must exist before the first run (it can't create itself). That's the
+only step done outside the pipeline, and it needs **no local CLI and no keys**:
 
-# Point the OIDC trust policy at your repo (or edit cdk.json context):
-#   -c githubOwner=<org> -c githubRepo=<repo> -c githubBranch=main
-# If a GitHub OIDC provider already exists in the account, add:
-#   -c createOidcProvider=false
+1. **Create the deploy role (once).** In the AWS Console → **CloudFormation →
+   Create stack → Upload a template**, upload
+   [`infra/github-oidc-bootstrap.yaml`](infra/github-oidc-bootstrap.yaml)
+   (region `us-east-1`), keep the pre-filled repo parameters, and create it.
+   Copy the **`RoleArn`** output.
+2. **Set GitHub repo variables** (Settings → Secrets and variables → Actions →
+   Variables) — see the table below.
+3. **Merge to `main`.** The `deploy.yml` pipeline runs `cdk bootstrap` +
+   `cdk deploy` (provisioning S3 + CloudFront), then builds and publishes the
+   site. The CloudFront URL is printed in the workflow summary.
 
-npx cdk bootstrap          # one-time per account/region
-npx cdk deploy -c githubOwner=thebackninegolf -c githubRepo=back-nine-pulse-board
-```
-
-Note the four outputs printed at the end — you'll wire them into GitHub next.
+> If you ever prefer a one-shot local bootstrap instead of the Console template,
+> you can run `cd infra && npx cdk bootstrap && npx cdk deploy -c createOidcProvider=true`
+> with admin credentials — but the Console template keeps the whole flow
+> keyless and GHA-only.
 
 ---
 
 ## CI/CD (GitHub Actions)
 
-Three workflows, all authenticating to AWS via **OIDC role assumption** — no
+Two workflows, both authenticating to AWS via **OIDC role assumption** — no
 stored access keys.
 
 - **`pr.yml`** — on every PR to `main`: `lint`, `typecheck`, `build`. Required gate.
-- **`infra.yml`** — on `infra/**` changes to `main` (or on demand): runs
-  **`cdk deploy`** to provision/update the stack. This is "CDK through GHA".
-- **`deploy.yml`** — on push to `main`: build the app → `aws s3 sync` → CloudFront
-  invalidation. The Pi shows the new build on its next refresh.
+- **`deploy.yml`** — on push/merge to `main`: `cdk deploy` (infra) → build →
+  `aws s3 sync` → CloudFront invalidation. This is the whole deploy — **CDK and
+  the site, together, through GitHub Actions**. The Pi shows the new build on its
+  next refresh.
 
-The deploy role can both sync the app **and** assume the CDK bootstrap roles, so
-after the one-time local bootstrap all infra + app changes flow through Actions.
+The pipeline reads the bucket and distribution ID straight from the CDK stack
+outputs at run time, so you don't hand-copy them into variables.
 
 ### Required GitHub repository variables
 
-Set these under **Settings → Secrets and variables → Actions → Variables** from
-the `cdk deploy` outputs (they aren't secret, so repository *variables* are fine):
+Set these under **Settings → Secrets and variables → Actions → Variables** (none
+are secret, so repository *variables* are correct):
 
-| GitHub variable              | Value / source                          |
-| ---------------------------- | --------------------------------------- |
-| `AWS_ROLE_ARN`               | `DeployRoleArn` output                  |
-| `AWS_REGION`                 | your deploy region (e.g. `us-east-2`)   |
-| `S3_BUCKET`                  | `BucketName` output                     |
-| `CLOUDFRONT_DISTRIBUTION_ID` | `DistributionId` output                 |
-| `GH_OWNER`                   | your GitHub org/user (for `infra.yml`)  |
-| `GH_REPO`                    | your repo name (for `infra.yml`)        |
+| GitHub variable | Value / source                                         |
+| --------------- | ------------------------------------------------------ |
+| `AWS_ROLE_ARN`  | `RoleArn` output of the bootstrap CloudFormation stack |
+| `AWS_REGION`    | your deploy region (e.g. `us-east-1`)                  |
+| `GH_OWNER`      | GitHub org/user (scopes the CDK app role's OIDC trust) |
+| `GH_REPO`      | repository name                                         |
 
-Both deploy jobs use `environment: production`; add environment protection rules
+The deploy job uses `environment: production`; add environment protection rules
 there if you want manual approval before a deploy.
 
 ---

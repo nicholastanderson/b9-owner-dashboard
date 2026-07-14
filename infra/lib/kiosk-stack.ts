@@ -115,18 +115,11 @@ export class KioskStack extends cdk.Stack {
       }),
     );
 
-    // For INFRA deploys through GitHub Actions ("cdk deploy through GHA"): let
-    // the same role assume the CDK bootstrap roles, which is how the CDK CLI
-    // performs a deployment. This is what makes the infra.yml workflow work
-    // without any stored keys. (The bootstrap roles themselves are what hold
-    // the real CloudFormation/IAM/S3 power; the CLI just assumes them.)
-    deployRole.addToPolicy(
-      new iam.PolicyStatement({
-        sid: 'AssumeCdkBootstrapRoles',
-        actions: ['sts:AssumeRole'],
-        resources: [`arn:aws:iam::${this.account}:role/cdk-*`],
-      }),
-    );
+    // Note: this app role is deliberately least-privilege (publish only). The
+    // privileged "run cdk deploy" permissions live on the separate bootstrap
+    // role (see infra/github-oidc-bootstrap.yaml), which is what the pipeline
+    // assumes to provision infra. Keeping the two apart means a leaked app
+    // token can overwrite files but can't rewrite the infrastructure.
 
     // --- Outputs (wire these into GitHub repo variables) -----------------
     new cdk.CfnOutput(this, 'BucketName', {
