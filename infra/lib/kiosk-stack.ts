@@ -98,8 +98,8 @@ export class KioskStack extends cdk.Stack {
       }),
     });
 
-    // Least privilege: sync objects into the bucket, and invalidate this one
-    // distribution. Nothing else.
+    // Least privilege for APP deploys: sync objects into the bucket, and
+    // invalidate this one distribution. Nothing else.
     siteBucket.grantReadWrite(deployRole);
     deployRole.addToPolicy(
       new iam.PolicyStatement({
@@ -112,6 +112,19 @@ export class KioskStack extends cdk.Stack {
         resources: [
           `arn:aws:cloudfront::${this.account}:distribution/${distribution.distributionId}`,
         ],
+      }),
+    );
+
+    // For INFRA deploys through GitHub Actions ("cdk deploy through GHA"): let
+    // the same role assume the CDK bootstrap roles, which is how the CDK CLI
+    // performs a deployment. This is what makes the infra.yml workflow work
+    // without any stored keys. (The bootstrap roles themselves are what hold
+    // the real CloudFormation/IAM/S3 power; the CLI just assumes them.)
+    deployRole.addToPolicy(
+      new iam.PolicyStatement({
+        sid: 'AssumeCdkBootstrapRoles',
+        actions: ['sts:AssumeRole'],
+        resources: [`arn:aws:iam::${this.account}:role/cdk-*`],
       }),
     );
 

@@ -6,9 +6,13 @@ live progress toward the **100-members-by-Jan-1-2027** goal plus money,
 utilization, funnel, and ambient reputation metrics — glanceable from across the
 room, auto-refreshing, and designed to never show a blank or crashed screen.
 
-> One fixed 16:9 screen: hero **active-members / 100** with progress + pace, then
-> **money · utilization · funnel** columns, and an ambient footer (Google rating
-> + a rotating "needle-mover" prompt). Dark theme, large glanceable type.
+> Two glanceable layouts, auto-selected by screen size:
+> - **`mini`** (800×480, the 7″ DSI panel this ships on): projected Jan-1 total at
+>   current pace, this-week close directive, and a four-tile action queue.
+> - **`full`** (1080p wall display): hero **active-members / 100** with progress +
+>   pace, then **money · utilization · funnel** columns and an ambient footer.
+>
+> Dark theme, Anton/Saira type, one fixed screen, no scroll.
 
 - **Stack:** Vite + React + TypeScript + Tailwind. No backend — a static SPA on
   S3 behind CloudFront. Bundle is ~50 KB gzipped to stay light on Pi hardware.
@@ -160,26 +164,33 @@ Note the four outputs printed at the end — you'll wire them into GitHub next.
 
 ## CI/CD (GitHub Actions)
 
-Two workflows, both authenticating to AWS via **OIDC role assumption** — no
+Three workflows, all authenticating to AWS via **OIDC role assumption** — no
 stored access keys.
 
 - **`pr.yml`** — on every PR to `main`: `lint`, `typecheck`, `build`. Required gate.
-- **`deploy.yml`** — on push to `main`: build → `aws s3 sync` to the bucket →
-  CloudFront invalidation. The Pi shows the new build on its next refresh.
+- **`infra.yml`** — on `infra/**` changes to `main` (or on demand): runs
+  **`cdk deploy`** to provision/update the stack. This is "CDK through GHA".
+- **`deploy.yml`** — on push to `main`: build the app → `aws s3 sync` → CloudFront
+  invalidation. The Pi shows the new build on its next refresh.
+
+The deploy role can both sync the app **and** assume the CDK bootstrap roles, so
+after the one-time local bootstrap all infra + app changes flow through Actions.
 
 ### Required GitHub repository variables
 
 Set these under **Settings → Secrets and variables → Actions → Variables** from
 the `cdk deploy` outputs (they aren't secret, so repository *variables* are fine):
 
-| GitHub variable                | Comes from CDK output |
-| ------------------------------ | --------------------- |
-| `AWS_ROLE_ARN`                 | `DeployRoleArn`       |
-| `AWS_REGION`                   | your deploy region    |
-| `S3_BUCKET`                    | `BucketName`          |
-| `CLOUDFRONT_DISTRIBUTION_ID`   | `DistributionId`      |
+| GitHub variable              | Value / source                          |
+| ---------------------------- | --------------------------------------- |
+| `AWS_ROLE_ARN`               | `DeployRoleArn` output                  |
+| `AWS_REGION`                 | your deploy region (e.g. `us-east-2`)   |
+| `S3_BUCKET`                  | `BucketName` output                     |
+| `CLOUDFRONT_DISTRIBUTION_ID` | `DistributionId` output                 |
+| `GH_OWNER`                   | your GitHub org/user (for `infra.yml`)  |
+| `GH_REPO`                    | your repo name (for `infra.yml`)        |
 
-The deploy job uses `environment: production`; add environment protection rules
+Both deploy jobs use `environment: production`; add environment protection rules
 there if you want manual approval before a deploy.
 
 ---
@@ -225,22 +236,45 @@ sudo loginctl enable-linger "$USER"   # start without an interactive login
 
 `Restart=always` relaunches Chromium if it ever exits.
 
-### 3. Screen resolution
+### 3. Screen resolution & board layout
 
-The board is authored on a fixed **1920×1080 (16:9)** canvas and scaled with a
-CSS transform to fit whatever panel it runs on — so it fills the screen with
-**no scroll and no cropping** at any resolution. Recommendations:
+The app renders **two layouts** and auto-picks by screen size (override with
+`VITE_BOARD=mini|full`):
 
-- **Best:** a 1080p (or 720p) 16:9 display — pixel-perfect, no letterboxing.
-- **Other aspect ratios** (e.g. the 1280×800 DSI panel) render centered and
-  letterboxed rather than distorted. For a dedicated non-16:9 panel you can
-  force the HDMI mode in `/boot/firmware/config.txt`:
+| Panel                              | Layout | What it shows                                        |
+| ---------------------------------- | ------ | ---------------------------------------------------- |
+| **800×480** (7″ DSI panel) & small | `mini` | Projected Jan-1 total, this-week directive, action queue |
+| 1080p / 720p wall display          | `full` | Hero X/100, money · utilization · funnel, ambient row |
+
+Each layout is authored on a fixed canvas (800×480 or 1920×1080) and scaled with
+a CSS transform to fill the panel — **no scroll, no cropping** — so it's
+pixel-proportioned rather than reflowed.
+
+#### The 800×480 target panel (official 7″ Raspberry Pi touchscreen / DSI)
+
+This is the panel this kiosk is built for. The `mini` layout matches its native
+800×480 exactly, so no letterboxing.
+
+- Set the desktop resolution to **800×480** so Chromium's viewport matches the
+  panel and `mini` is auto-selected.
+- **DSI ribbon panels** are driven over the display connector — no HDMI mode
+  needed. If the image is upside-down (the official panel is often mounted
+  inverted), add to `/boot/firmware/config.txt`:
   ```
-  hdmi_group=2
-  hdmi_mode=82        # 1920x1080 @ 60Hz
+  # Rotate the DSI panel 180° if mounted inverted
+  display_lcd_rotate=2
   disable_overscan=1
   ```
-- Set the desktop resolution to match the panel; the app handles the rest.
+- **HDMI 800×480 panels** instead need an explicit mode in
+  `/boot/firmware/config.txt`:
+  ```
+  hdmi_group=2
+  hdmi_mode=87            # custom mode
+  hdmi_cvt=800 480 60 6   # 800x480 @ 60Hz
+  disable_overscan=1
+  ```
+- For a big 16:9 wall display instead, set 1080p and the `full` board is chosen
+  automatically (`hdmi_group=2`, `hdmi_mode=82`).
 
 ### Refresh behavior
 
