@@ -41,7 +41,18 @@ npm run build      # typecheck + production build → dist/
 npm run preview    # serve the production build
 npm run lint       # eslint
 npm run typecheck  # tsc, no emit
+npm test           # vitest — run the unit suite once
+npm run test:watch # vitest — watch mode for TDD
 ```
+
+### Testing (TDD)
+
+Changes to this repo follow test-driven development: write or update a failing
+test first, then make it pass. The suite (Vitest) lives next to the code it
+covers — `src/**/*.test.ts` — and focuses on the pure logic layer: formatting
+helpers (`src/lib/format.ts`), the board/mini view-model derivation
+(`src/lib/derive.ts`, `src/lib/deriveMini.ts`), and the data adapter. `npm test`
+is a required PR check, so a red suite blocks merging to `main`.
 
 Optional config (copy `.env.example` → `.env.local`):
 
@@ -173,7 +184,7 @@ only step done outside the pipeline, and it needs **no local CLI and no keys**:
 Two workflows, both authenticating to AWS via **OIDC role assumption** — no
 stored access keys.
 
-- **`pr.yml`** — on every PR to `main`: `lint`, `typecheck`, `build`. Required gate.
+- **`pr.yml`** — on every PR to `main`: `test`, `lint`, `typecheck`, `build`. Required gate.
 - **`deploy.yml`** — on push/merge to `main`: `cdk deploy` (infra) → build →
   `aws s3 sync` → CloudFront invalidation. This is the whole deploy — **CDK and
   the site, together, through GitHub Actions**. The Pi shows the new build on its
