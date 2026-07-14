@@ -1,0 +1,55 @@
+{
+  "updatedAt": "2026-07-14T14:14:00-05:00",
+  "goal": {
+    "activeMembers": 40,
+    "target": 100,
+    "targetDate": "2027-01-01",
+    "netThisWeek": 3,
+    "neededPerWeek": 2.1,
+    "trailingPacePerWeek": 2.6
+  },
+  "money": {
+    "mrr": 12400,
+    "mrrDeltaMoM": 680,
+    "netMemberMovementMtd": 7,
+    "newMembersMtd": 9,
+    "cancelledMtd": 2,
+    "revenueMtd": 8240,
+    "revenueDeltaPctVsLastMonth": 16
+  },
+  "utilization": {
+    "bookingsToday": 14,
+    "bayHoursToday": 22.5,
+    "bayOccupancyPct": 63,
+    "bookingsThisWeek": 96,
+    "bookingsDeltaPctWoW": 19
+  },
+  "funnel": {
+    "newLeadsThisWeek": 11,
+    "trialsBooked": 6,
+    "trialsConverted": 4
+  },
+  "ambient": {
+    "googleRating": 4.8,
+    "googleReviews": 127,
+    "needleMovers": [
+      "Follow up on this week’s 4 trials within 24h — fast follow-up converts ~60%.",
+      "9 new members MTD vs 2 cancelled — net +7. Keep the onboarding texts going.",
+      "Bay occupancy 63% today — push a twilight-rate promo to fill the 7–9pm gap.",
+      "127 Google reviews at 4.8★ — ask today’s trial no-shows for a quick rating."
+    ]
+  },
+  "weekly": {
+    "target": 2,
+    "done": 2,
+    "daysLeft": 4
+  },
+  "operations": {
+    "trialsToCall": 0,
+    "gmailInbox": 4,
+    "avgResponseHours": 2,
+    "daysSinceLastSignup": 2,
+    "socialQueued": 6,
+    "socialRunwayDays": 7
+  }
+}

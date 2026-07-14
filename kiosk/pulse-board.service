@@ -1,0 +1,27 @@
+# systemd user service to auto-start the kiosk on boot (Raspberry Pi OS with a
+# desktop session / X11). Install with:
+#
+#   mkdir -p ~/.config/systemd/user
+#   cp kiosk/pulse-board.service ~/.config/systemd/user/
+#   cp kiosk/pulse-board-kiosk.sh ~/pulse-board-kiosk.sh && chmod +x ~/pulse-board-kiosk.sh
+#   # edit PULSE_BOARD_URL in ~/pulse-board-kiosk.sh (or set it in the [Service] block below)
+#   systemctl --user daemon-reload
+#   systemctl --user enable --now pulse-board.service
+#   sudo loginctl enable-linger "$USER"   # so it starts without an interactive login
+#
+[Unit]
+Description=Back Nine Pulse Board kiosk (Chromium)
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+# Set your deployed CloudFront URL here (or edit it inside the script):
+Environment=PULSE_BOARD_URL=https://REPLACE_ME.cloudfront.net
+ExecStart=%h/pulse-board-kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

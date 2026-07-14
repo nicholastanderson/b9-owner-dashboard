@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+    margin: 0;
+  }
+
+  body {
+    background: theme('colors.ink');
+    color: theme('colors.text');
+    font-family: theme('fontFamily.sans');
+    /* A kiosk is not a document — kill selection, callouts, and overscroll. */
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+    overscroll-behavior: none;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: none; /* hide the mouse pointer on the Pi */
+  }
+}
+
+@layer utilities {
+  /* Anton is only ever used italic in the brand system. */
+  .font-display {
+    font-style: italic;
+  }
+
+  @keyframes bn-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  .animate-bn-pulse {
+    animation: bn-pulse 2.4s ease-in-out infinite;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}

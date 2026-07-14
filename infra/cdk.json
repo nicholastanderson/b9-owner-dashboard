@@ -1,0 +1,23 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/infra.ts",
+  "watch": {
+    "include": ["**"],
+    "exclude": ["README.md", "cdk*.json", "node_modules", "dist", "cdk.out"]
+  },
+  "context": {
+    "//": "Set these for your GitHub repo so the OIDC trust policy is scoped correctly.",
+    "githubOwner": "nicholastanderson",
+    "githubRepo": "b9-owner-dashboard",
+    "githubBranch": "main",
+    "//createOidcProvider": "false: the OIDC provider is created once by github-oidc-bootstrap.yaml, then imported here. Set true only if you deploy the whole stack with admin creds and no bootstrap template exists.",
+    "createOidcProvider": false,
+
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:validateSnapshotRemovalPolicy": true,
+    "@aws-cdk/aws-s3:createDefaultLoggingPolicy": true,
+    "@aws-cdk/aws-s3:serverAccessLogsUseBucketPolicy": true,
+    "@aws-cdk/core:target-partitions": ["aws", "aws-cn"]
+  }
+}
