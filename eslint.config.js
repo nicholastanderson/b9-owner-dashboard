@@ -8,7 +8,7 @@ export default tseslint.config(
   { ignores: ['dist', 'infra/cdk.out', 'infra/dist', '**/node_modules'] },
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
-    files: ['src/**/*.{ts,tsx}'],
+    files: ['src/**/*.{ts,tsx}', 'kiosk/**/*.test.ts'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.browser,

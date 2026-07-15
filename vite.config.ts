@@ -11,8 +11,9 @@ export default defineConfig({
     target: 'es2020',
   },
   test: {
-    // Pure-logic suite (formatting + view-model derivation). No DOM needed.
+    // Pure-logic suite (formatting + view-model derivation) plus the kiosk
+    // installer, which shells out for real. No DOM needed.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'kiosk/**/*.test.ts'],
   },
 });
