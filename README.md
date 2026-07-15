@@ -82,7 +82,7 @@ src/
     derive.ts       # raw metrics → fully-derived view model (all the rules)
   components/       # KioskBoard + presentational pieces (dumb, take a view model)
 infra/              # AWS CDK stack
-kiosk/              # Raspberry Pi launch script + systemd unit
+kiosk/              # Raspberry Pi installer + launch script + systemd unit
 .github/workflows/  # PR gate + deploy pipeline
 ```
 
@@ -215,41 +215,57 @@ there if you want manual approval before a deploy.
 The Pi just needs to open the CloudFront URL full-screen and stay awake. Helper
 files are in [`kiosk/`](kiosk).
 
-### 1. Point the launcher at your board
+### 1. Flash the SD card
 
-Copy the script to the Pi and set your CloudFront URL:
+Use Raspberry Pi Imager with **Raspberry Pi OS (with desktop)** — the kiosk needs
+an X11 session. In Imager's advanced options set the hostname, your Wi-Fi, and
+enable SSH with your public key. Nothing from this repo needs to go on the card;
+the installer below pulls it down on first boot.
 
-```bash
-cp kiosk/pulse-board-kiosk.sh ~/pulse-board-kiosk.sh
-chmod +x ~/pulse-board-kiosk.sh
-# edit PULSE_BOARD_URL near the top, or export it in the service file
-```
+### 2. Install the kiosk (one command)
 
-It launches Chromium in `--kiosk` mode and disables screen blanking:
-
-```bash
-xset s off        # no screensaver
-xset s noblank    # don't blank the framebuffer
-xset -dpms        # no display power management
-chromium-browser --kiosk https://<your-distribution>.cloudfront.net ...
-```
-
-(Install `unclutter` to hide the mouse cursor: `sudo apt install unclutter`.)
-
-### 2. Auto-start on boot
-
-Use the provided systemd **user** service:
+Boot the Pi, SSH in, and run the installer with your CloudFront URL — it's
+printed in the **Deploy (CDK + site)** workflow summary (the `CloudFrontUrl`
+stack output):
 
 ```bash
-mkdir -p ~/.config/systemd/user
-cp kiosk/pulse-board.service ~/.config/systemd/user/
-# set Environment=PULSE_BOARD_URL=... in the service, or in the script
-systemctl --user daemon-reload
-systemctl --user enable --now pulse-board.service
-sudo loginctl enable-linger "$USER"   # start without an interactive login
+curl -fsSL https://raw.githubusercontent.com/nicholastanderson/b9-owner-dashboard/main/kiosk/install.sh \
+  | bash -s -- https://YOUR-DIST.cloudfront.net
 ```
 
-`Restart=always` relaunches Chromium if it ever exits.
+That's the whole setup. [`kiosk/install.sh`](kiosk/install.sh) fetches the
+launcher and the systemd unit, writes your URL into the unit, enables the
+service, and enables lingering so the board comes up on boot without a login.
+It's safe to re-run — that's also how you point a Pi at a new URL.
+
+> The URL is the **only** value you supply, and it lives in exactly one place
+> (`Environment=PULSE_BOARD_URL=` in the installed unit). Nothing in the repo
+> needs editing, and the launcher refuses to start with a clear message rather
+> than loading a placeholder host if it's ever missing.
+
+Piped into `bash` there's no terminal to prompt from, so pass the URL as an
+argument. Downloaded and run directly (`./install.sh`), it prompts if you omit it.
+
+Install `unclutter` to hide the mouse cursor: `sudo apt install unclutter`.
+
+### 3. Check it / drive it
+
+```bash
+systemctl --user status pulse-board.service
+journalctl --user -u pulse-board.service -f   # logs
+systemctl --user restart pulse-board.service  # after changing the URL
+systemctl --user edit --full pulse-board.service   # change the URL by hand
+```
+
+The launcher runs Chromium in `--kiosk` mode and disables screen blanking
+(`xset s off`, `xset s noblank`, `xset -dpms`). `Restart=always` relaunches
+Chromium if it ever exits.
+
+> **Prefer to keep the Pi updatable with `git pull`?** Clone the repo instead and
+> run `./kiosk/install.sh https://YOUR-DIST.cloudfront.net` from the checkout —
+> the installer works the same either way. These two files rarely change once
+> set up, though: the *board* updates via CloudFront on the Pi's own reload
+> interval, no Pi-side action needed.
 
 ### 3. Screen resolution & board layout
 
